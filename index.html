@@ -1,1 +1,143 @@
-test
+<html>
+  <head>
+    <title>Die Europäische Tragödie</title>
+    <link rel="stylesheet" href="leaflet.css" />
+    <link href='https://fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,400italic,500,700,500italic,700italic,900italic,900' rel='stylesheet' type='text/css'>
+    <meta charset="utf-8" />
+    <style type="text/css">
+      html, body { margin: 0; padding: 0; background-color: #d3d3d3; }
+      #header { width: 100%; height: 60px; padding: 10px; display: block;}
+      #header h1 { margin-left: 100px; color: #252525; font-family: 'Roboto', Helvetica, Arial, sans-serif; }
+      #map { height: 600px; width:70%; display: block; border-bottom: 1px solid #252525; border-top: 1px solid #252525; }
+      .eventLabel h3 { margin: 0; }
+      .eventLabel .source { padding-top: 5px; font-size: 10px; }
+      #facets { float: left; height: 600px; padding-left: 20px; padding-top: 20px; font-family: 'Roboto', Helvetica, Arial, sans-serif; color: black; }
+      #backgroundInfo { padding: 10px; padding-left: 100px; font-family: 'Roboto', Helvetica, Arial, sans-serif; color: #3b322d;} 
+    </style>
+  </head>
+  <body onload="">
+    <div id="header"><h1>Die Europäische Tragödie</h1></div>
+    <div id="container" style="height: 600px; background-color: #999999;"/>
+      <div id="map" style="float: left;"></div>
+      <div id="facets">
+        <ul style="margin: 0; padding: 0; list-style-type: none;">
+          <li><span style="color: red; font-weight: bold; font-size: 20px;">&#10014;</span> Ertrinken oder Tod durch Erschöpfung</li>
+          <li><span style="color: purple; font-weight: bold; font-size: 20px;">&#10014;</span> Unfalltod</li>
+          <li><span style="color: blue; font-weight: bold; font-size: 20px;">&#10014;</span> Suizid</li>
+          <li><span style="color: yellow; font-weight: bold; font-size: 20px;">&#10014;</span> Tod durch Staatsgewalt</li>
+          <li><span style="color: white; font-weight: bold; font-size: 20px;">&#10014;</span> Totschlag</li>
+        </ul>  
+        <p>
+          <a href="javascript:locateMe()">locate me</a>
+        </p>
+      </div>
+    </div>
+    <div style="display: none;" id="lg"></div>
+    <div id="backgroundInfo">
+      <h2>Über 23.000 Menschen sind in den letzten Jahren auf dem Weg nach Europa umgekommen.</h2>
+      <p>Wir zeigen die Details dieser unvorstellbaren Katastrophe, die sich direkt in unserer unmittelbaren Nachbarschaft abspielt. Das Mittelmeer ist zur tödlichsten Grenze der Welt und zum Massengrab verkommen.</p>
+      <p>Daten bereitgestellt von <a href="http://www.themigrantsfiles.com/">http://www.themigrantsfiles.com/</a>.</p>
+    </div>
+    <script src="data.js"></script>
+    <script src="jquery-2.2.3.min.js"></script>
+    <script src="leaflet.js"></script>
+    <script type="text/javascript">
+
+        function locateMe() {
+          $.getJSON("http://www.geoplugin.net/json.gp?jsoncallback=?", function (data) {
+            map.setView(new L.LatLng(data['geoplugin_latitude'] , data['geoplugin_longitude']), 7);
+          })
+        }
+
+        function translateCause(cause) {
+          if (cause.indexOf('exhaustion related') > -1 ) { return 'Ertrinken oder Tod durch Erschöpfung' }
+          if (cause == "authorities related death") { return 'Tod durch Staatsgewalt' }
+          if (cause == "suicide") { return 'Suizid' }
+          if (cause.indexOf('violent accidental death') > -1) { return 'Unfalltod' }  
+          if (cause.indexOf('manslaughter') > -1) { return 'Totschlag' }            
+        }
+
+        var map = L.map('map').setView([39.2787593, 21.3041037], 5);
+
+        var CartoDB_DarkMatter = L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+          subdomains: 'abcd',
+          minZoom: 4,
+          maxZoom: 7,
+          fadeAnimation: false,
+          zoomAnimation: false,
+          markerZoomAnimation: false,          
+        }).addTo(map);
+
+        var months = { "01": "Januar", "02": "Februar", "03": "März", "04": "April", "05": "Mai", "06": "Juni", "07": "Juli", "08": "August", 
+                       "09": "September", "10": "Oktober", "11": "November", "12": "Dezember" }
+
+        var numRendered = 0
+
+        for (var n = 0; n < events.length; n++)  {
+          var event = events[n]
+          var date = event['date']
+          var numDead = event['dead']
+          var numMissing = event['missing']
+          var description = event['description']
+          var cause = event['cartodb_cause_of_death']
+          var eventLocation = event['location']
+          var lat = event['latitude']
+          var lon = event['longitude']
+          var source = event['source']
+          var sourceURI = event['source_url']
+
+          var dateParts = date.split("T")[0].split("-")
+
+          var victims = '<div style="color: #8C1C1C">'
+
+          if (numDead > 0) {
+            var deadLabel = numDead > 1 ? "Tote" : "Toter"
+            victims += numDead + " " + deadLabel
+            if (numMissing > 0) {
+              victims += " / "
+            }                     
+          }  
+          if (numMissing > 0) {
+            var missingLabel = numMissing > 1 ? "Vermisste" : "Vermisster"
+            victims += numMissing + " " + missingLabel
+          }
+          victims += '</div><div style="font-size: 9px;">' + translateCause(cause) + '</div>'
+
+          var day = dateParts[2].charAt(0) == '0' ? dateParts[2].charAt(1) : dateParts[2]
+          var year = parseInt(dateParts[0])
+
+          var sourceText = source 
+          if (sourceURI != "") {
+            sourceText += ' - <a href="' + sourceURI +'" target="_blank">' + sourceURI + '</a>'
+          }
+
+
+
+          var label = '<span class="eventLabel"><h3>' + day + ". " + months[dateParts[1]] + " " + year + " - " + eventLocation + "</h3><h3>" + victims + '</h3><span style="text-align: justify;">' + description + '</span><br/><div class="source">' + sourceText + '</div></span>'
+
+          var circleRadius = 1 + (Math.log(numDead + numMissing) / Math.log(5)) * 10000  
+
+          var color = 'gray'  
+
+          if (cause.indexOf('exhaustion related') > -1 ) { color = 'red' }
+          if (cause == "authorities related death") { color = 'yellow' }
+          if (cause == "suicide") { color = 'blue' }
+          if (cause.indexOf('violent accidental death') > -1) { color = 'purple' }  
+          if (cause.indexOf('manslaughter') > -1) { color = 'white' }  
+
+          try {
+            if (lat != "" && lon != "" /*&& year >= 2013*/) {
+              L.circle([lat, lon], circleRadius, { color: color, fillColor: color, fillOpacity: 0.5 }).addTo(map).bindPopup(label); 
+              numRendered++
+            }
+          }
+          catch(err) {
+            alert(n + " " + events[n] + " --- " + err.message)
+          }
+        }
+        document.getElementById("lg").innerHTML = numRendered + " / " + events.length
+
+    </script>    
+  </body>
+</html>
